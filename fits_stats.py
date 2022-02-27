@@ -240,7 +240,9 @@ def get_stats_dir(dir_name, recursive=False, num_threads=10):
     :param num_threads: number of threads to use, default=10
     :return: pandas data frame
     """
-    file_names = glob.glob("*.fit", root_dir=dir_name, recursive=recursive)
+    #file_names = glob.glob("*.fit", root_dir=dir_name, recursive=recursive)
+    # glob somehow got downgraded?
+    file_names = glob.glob(os.path.join(dir_name, "*.fit"))
     file_names = list(map(lambda x: os.path.join(dir_name, x), file_names))
     # M1 mac requires forking
     pool = get_context("fork").Pool(num_threads)
