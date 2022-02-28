@@ -138,7 +138,8 @@ R = 0.1**2  # estimate of measurement variance, change to see effect
 
 # initial guesses
 xhat[0] = np.median(z, axis=0)
-P[0] = 1.0
+#P[0] = 1.0
+P[0] = .01
 
 for k in range(1, n_iter):
     # time update
@@ -174,3 +175,35 @@ just_median = np.median(z, axis=0)
 fits.writeto(out_path, just_median, overwrite=True)
 
 print("finished")
+
+
+########################################################
+# Trying the approach of https://github.com/SRC877/Comparing-and-combining-Kalman-and-Wiener-Filter-for-video-denoising
+# which used the code from
+# % Purpose
+# % Implements a predictive Kalman-like filter in the time domain of the image
+# % stack. Algorithm taken from Java code by C.P. Mauer.
+# % http://rsb.info.nih.gov/ij/plugins/kalman.html
+percentvar = 0.05
+gain = 0.5
+imageStack = z
+imageStack = np.concatenate((imageStack, [z[-1]]))
+width = imageStack.shape[1]
+height = imageStack.shape[2]
+stacksize = imageStack.shape[0]
+tmp = np.ones((width, height))
+predicted = imageStack[1]
+predictedvar = tmp * percentvar
+noisevar = predictedvar
+
+for i in range(1, stacksize-1):
+    stackslice = imageStack[i + 1]
+    observed = stackslice
+    Kalman = predictedvar / (predictedvar + noisevar)
+    corrected = gain * predicted + (1.0 - gain) * observed + Kalman * (observed - predicted)
+    correctedvar = predictedvar * (tmp - Kalman)
+    predictedvar = correctedvar
+    predicted = corrected
+    imageStack[i] = corrected
+
+res = imageStack[1:-2]
