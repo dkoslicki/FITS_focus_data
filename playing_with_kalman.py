@@ -18,8 +18,10 @@ for file_name in file_names:
 
 z = []
 #i = 1739
+#i = 8
+#j = 343
 i = 8
-j = 343
+j = 344
 for data in data_list:
     z.append(data[i, j])
 
@@ -68,7 +70,7 @@ plt.plot(z, 'k+', label='noisy measurements')
 plt.plot(xhat, 'b-', label='a posteri estimate')
 plt.axhline(x, color='g', label='median value')
 plt.legend()
-plt.title('Estimate vs. iteration step', fontweight='bold')
+plt.title(f'Estimate vs. iteration step ({i},{j})', fontweight='bold')
 plt.xlabel('Iteration')
 plt.ylabel('Pixel value')
 plt.show()
@@ -125,7 +127,7 @@ num_images = len(z)
 z_no_hot = z
 med = np.median(z, axis=0)
 var = np.var(z, axis=0)
-sigma = 3
+sigma = 2
 bad_i, bad_j = np.where(var > sigma*np.mean(var))
 # now for each of the locations that have a hot pixel show up, let's replace it with the median
 for i, j in zip(bad_i, bad_j):
@@ -255,3 +257,36 @@ plt.imshow(z[5,x_start-pad:x_start+pad,y_start-pad:y_start+pad]); plt.show()
 i = 1733 #1750  # 1733
 j = 1306 #1298  1294 1293 # 1306
 plt.plot(z[:,i,j]); plt.show()
+
+
+##############################################################################
+# After hot pixel removal, what does the variance look like when plotted
+im_var = np.var(z_no_hot, axis=0)
+out_path = "/Users/dmk333/Dropbox/Astrophotography/Headphones nebula/KalmanOut/image_variance.fit"
+im_var = im_var.astype('float32')
+fits.writeto(out_path, im_var, overwrite=True)
+print('finished')
+
+# Maybe replace areas of low variance with the background value?
+
+# The extreme outliers appear to be the hot pixels, can probably replace these with the background
+# or their neighbors instead, note that these include rings around stars, plus some of the DSO itself
+out_path = "/Users/dmk333/Dropbox/Astrophotography/Headphones nebula/KalmanOut/image_large_variance.fit"
+sigma = 100000000
+im_var = np.var(z_no_hot, axis=0)
+# just the very top
+high_var_locs = np.where(im_var < np.mean(im_var) + sigma*np.var(im_var))
+im_var[high_var_locs] = 0
+fits.writeto(out_path, im_var, overwrite=True)
+print('finished')
+
+# Ok, so it looks like I can replace the small variance locations with the background value
+out_path = "/Users/dmk333/Dropbox/Astrophotography/Headphones nebula/KalmanOut/image_small_variance.fit"
+sigma = 2
+im_var = np.var(z_no_hot, axis=0)
+low_var_locs = im_var > np.mean(im_var) + sigma*np.var(im_var)
+im_var[np.where(low_var_locs)] = 0
+fits.writeto(out_path, im_var, overwrite=True)
+print('finished')
+
+
