@@ -206,8 +206,8 @@ print("finished")
 # % Implements a predictive Kalman-like filter in the time domain of the image
 # % stack. Algorithm taken from Java code by C.P. Mauer.
 # % http://rsb.info.nih.gov/ij/plugins/kalman.html
-percentvar = 0.5
-gain = 1
+percentvar = .005
+gain = 0.9
 imageStack = z
 imageStack = np.concatenate((imageStack, [z[-1]]))
 width = imageStack.shape[1]
@@ -235,6 +235,10 @@ kalman2 = res[-1].astype('float32')
 fits.writeto(out_path, kalman2, overwrite=True)
 print('finished')
 
+
+
+#########################################
+# outlier hunting
 x_start = 1743
 y_start = 1303
 pad = 10
