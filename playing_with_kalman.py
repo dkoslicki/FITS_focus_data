@@ -17,8 +17,9 @@ for file_name in file_names:
     data_list.append(data)
 
 z = []
-i = 100
-j = 100
+#i = 1739
+i = 8
+j = 343
 for data in data_list:
     z.append(data[i, j])
 
@@ -43,8 +44,8 @@ R = 0.1**2  # estimate of measurement variance, change to see effect
 #R = 100*np.std(z)
 
 # initial guesses
-#xhat[0] = 0.0
-xhat[0] = np.median(z)
+xhat[0] = 0.0
+#xhat[0] = np.median(z)
 #P[0] = 1.0
 P[0] = .01
 
@@ -118,6 +119,27 @@ else:
 z = np.array(data_list)
 num_images = len(z)
 
+####
+# Let's see if I can remove outliers (i.e. hot pixels)
+# Idea: identify hot pixel locations through those locations whose variances are higher than expected
+z_no_hot = z
+med = np.median(z, axis=0)
+var = np.var(z, axis=0)
+sigma = 3
+bad_i, bad_j = np.where(var > sigma*np.mean(var))
+# now for each of the locations that have a hot pixel show up, let's replace it with the median
+for i, j in zip(bad_i, bad_j):
+    series = z[:, i, j]
+    series_med = np.median(series)
+    series_var = np.var(series)
+    upper_lim = series_med + sigma*series_var
+    lower_lim = series_med - sigma*series_var
+    spike_locs = np.where(np.logical_or(series > upper_lim, series < lower_lim))
+    series[spike_locs] = series_med
+    z_no_hot[:, i, j] = series
+
+z = z_no_hot
+
 # median for each pixel across the series of images
 x = np.median(z, axis=1)
 # intial parameters
@@ -184,8 +206,8 @@ print("finished")
 # % Implements a predictive Kalman-like filter in the time domain of the image
 # % stack. Algorithm taken from Java code by C.P. Mauer.
 # % http://rsb.info.nih.gov/ij/plugins/kalman.html
-percentvar = 0.05
-gain = 0.5
+percentvar = 0.5
+gain = 1
 imageStack = z
 imageStack = np.concatenate((imageStack, [z[-1]]))
 width = imageStack.shape[1]
@@ -207,3 +229,25 @@ for i in range(1, stacksize-1):
     imageStack[i] = corrected
 
 res = imageStack[1:-2]
+
+out_path = "/Users/dmk333/Dropbox/Astrophotography/Headphones nebula/KalmanOut/kalman2.fit"
+kalman2 = res[-1].astype('float32')
+fits.writeto(out_path, kalman2, overwrite=True)
+print('finished')
+
+x_start = 1743
+y_start = 1303
+pad = 10
+for i in range(x_start-pad,x_start+pad):
+    for j in range(y_start-pad, y_start+pad):
+        sns.histplot(z[:,i,j])
+        plt.title(f"({i,j})")
+        plt.show()
+        plt.pause(.1)
+
+plt.imshow(np.max(z[:,x_start-pad:x_start+pad,y_start-pad:y_start+pad], axis=0)); plt.show()
+plt.imshow(z[5,x_start-pad:x_start+pad,y_start-pad:y_start+pad]); plt.show()
+
+i = 1733 #1750  # 1733
+j = 1306 #1298  1294 1293 # 1306
+plt.plot(z[:,i,j]); plt.show()
