@@ -88,7 +88,8 @@ plt.show()
 #############################################################################
 # Now let's see if we can do it over the entire image
 
-dir_name = "/Users/dmk333/Dropbox/Astrophotography/Headphones nebula/alignedNormalizedForKalman/"
+#dir_name = "/Users/dmk333/Dropbox/Astrophotography/Headphones nebula/alignedNormalizedForKalman/"
+dir_name = "/Users/dmk333/Dropbox/Astrophotography/Headphones nebula/alignedForKalman/"
 file_names = glob.glob(os.path.join(dir_name, "*.fits"))
 file_names = list(map(lambda x: os.path.join(dir_name, x), file_names))
 data_list = []
@@ -237,6 +238,15 @@ kalman2 = res[-1].astype('float32')
 fits.writeto(out_path, kalman2, overwrite=True)
 print('finished')
 
+out_path = "/Users/dmk333/Dropbox/Astrophotography/Headphones nebula/KalmanOut/kalman2secondToLast.fit"
+kalman2 = res[-2].astype('float32')
+fits.writeto(out_path, kalman2, overwrite=True)
+print('finished')
+
+out_path = "/Users/dmk333/Dropbox/Astrophotography/Headphones nebula/KalmanOut/kalman2Med.fit"
+kalman2 = np.median(res, axis=0).astype('float32')
+fits.writeto(out_path, kalman2, overwrite=True)
+print('finished')
 
 
 #########################################
@@ -272,21 +282,78 @@ print('finished')
 # The extreme outliers appear to be the hot pixels, can probably replace these with the background
 # or their neighbors instead, note that these include rings around stars, plus some of the DSO itself
 out_path = "/Users/dmk333/Dropbox/Astrophotography/Headphones nebula/KalmanOut/image_large_variance.fit"
-sigma = 100000000
+sigma = 2*100000000
 im_var = np.var(z_no_hot, axis=0)
 # just the very top
-high_var_locs = np.where(im_var < np.mean(im_var) + sigma*np.var(im_var))
-im_var[high_var_locs] = 0
+high_var_locs = np.where(im_var > np.mean(im_var) + sigma*np.var(im_var))
+im_var[high_var_locs] = 1
 fits.writeto(out_path, im_var, overwrite=True)
 print('finished')
 
 # Ok, so it looks like I can replace the small variance locations with the background value
 out_path = "/Users/dmk333/Dropbox/Astrophotography/Headphones nebula/KalmanOut/image_small_variance.fit"
-sigma = 2
+sigma = 1000000000
 im_var = np.var(z_no_hot, axis=0)
-low_var_locs = im_var > np.mean(im_var) + sigma*np.var(im_var)
-im_var[np.where(low_var_locs)] = 0
+low_var_locs = im_var < np.mean(im_var) - sigma*np.var(im_var)
+im_var[np.where(low_var_locs)] = 1
 fits.writeto(out_path, im_var, overwrite=True)
 print('finished')
 
+# Let's replace the high-variance pixels with the background
+# First, with all the images in the stack
+z_mod = z + 0
+z_mod_med = np.median(z_mod, axis=0)
+z_mod_med[high_var_locs] = np.median(np.median(z, axis=0))
+out_path = "/Users/dmk333/Dropbox/Astrophotography/Headphones nebula/KalmanOut/high_var_with_median.fit"
+out_data = z_mod_med
+fits.writeto(out_path, out_data, overwrite=True)
+print('finished')
 
+# And try doing the same with the low variance pixels
+z_mod_med[low_var_locs] = np.median(np.median(z, axis=0))
+out_path = "/Users/dmk333/Dropbox/Astrophotography/Headphones nebula/KalmanOut/high_var_with_median.fit"
+out_data = z_mod_med
+fits.writeto(out_path, out_data, overwrite=True)
+print('finished')
+
+
+##################################################
+# Let's try some computer vision denoising using OpenCV
+# Nope! Really only good for 8-bit images
+import cv2
+
+noisy = [cv2.convertScaleAbs((2**16-1)*1/(10*np.median(z[i]))*z[i], alpha=(255/65535)) for i in range(5)]
+#noisy = [np.clip((2**16-1)*1/(10*np.median(z[i]))*z[i], 0, 2**16-1) for i in range(5)]
+#gray = [cv2.cvtColor(i, cv2.COLOR_BGR2GRAY) for i in noisy]
+dst = cv2.fastNlMeansDenoisingMulti(noisy, 2, 3, h=4, templateWindowSize=7, searchWindowSize=21)
+#plt.subplot(132), plt.imshow(noisy[2], 'gray')
+#plt.subplot(133), plt.imshow(dst, 'gray')
+#plt.show()
+out_path = "/Users/dmk333/Dropbox/Astrophotography/Headphones nebula/KalmanOut/noisy.fit"
+out_data = noisy[2].astype('float32')
+fits.writeto(out_path, out_data, overwrite=True)
+out_path = "/Users/dmk333/Dropbox/Astrophotography/Headphones nebula/KalmanOut/dst.fit"
+out_data = dst.astype('float32')
+fits.writeto(out_path, out_data, overwrite=True)
+
+#######################################################
+# Let's try VRT: a recent video denoiser
+# git clone https://github.com/JingyunLiang/VRT
+# Pictures need to be in a folder, in another folder (hence the png2 subfoder)
+#python main_test_vrt.py --task 008_VRT_videodenoising_DAVIS --folder_lq /Users/dmk333/png/ --tile 40 128 128 --tile_overlap 2 20 20
+
+
+
+
+cap = cv2.VideoCapture('vtest.avi')
+# create a list of first 5 frames
+img = [cap.read()[1] for i in xrange(5)]
+
+# convert all to grayscale
+gray = [cv2.cvtColor(i, cv2.COLOR_BGR2GRAY) for i in img]
+
+# convert all to float64
+gray = [np.float64(i) for i in gray]
+
+# create a noise of variance 25
+noise = np.random.randn(*gray[1].shape)*10
