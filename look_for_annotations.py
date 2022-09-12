@@ -8,7 +8,8 @@ import sys
 import photutils
 import shutil
 
-folder = 'D:\Dropbox\Astrophotography\Sadr region\mosaic\ForAsteroids\SubFolder4'
+folder = "D:\\Astrophotography subs depreciated\\ghost\\lights"
+#folder = 'D:\\Dropbox\\Astrophotography\\Sadr region\\mosaic\\ForAsteroids\\SubFolder5'
 #folder = "D:\\Dropbox\\Astrophotography\\Ephemeris\\1663 van den Bos\\subs"
 print(folder)
 # iterate over all files in the folder
